@@ -1,0 +1,66 @@
+#!/bin/bash
+#this script runs the impact of value sizes experiment of the paper
+./exp_base.sh 2 thp_size load_256 16 1
+./exp_base.sh 2 thp_size load_256 16 2
+./exp_base.sh 2 thp_size load_256 16 3
+./exp_base.sh 2 thp_size load_512 16 1
+./exp_base.sh 2 thp_size load_512 16 2
+./exp_base.sh 2 thp_size load_512 16 3
+./exp_base.sh 2 thp_size load_1k 16 1
+./exp_base.sh 2 thp_size load_1k 16 2
+./exp_base.sh 2 thp_size load_1k 16 3
+./exp_base.sh 2 thp_size load_2k 16 1
+./exp_base.sh 2 thp_size load_2k 16 2
+./exp_base.sh 2 thp_size load_2k 16 3
+./exp_base.sh 2 thp_size load_4k 16 1
+./exp_base.sh 2 thp_size load_4k 16 2
+./exp_base.sh 2 thp_size load_4k 16 3
+./exp_base.sh 2 thp_size runa_256 16 1
+./exp_base.sh 2 thp_size runa_256 16 2
+./exp_base.sh 2 thp_size runa_256 16 3
+./exp_base.sh 2 thp_size runa_512 16 1
+./exp_base.sh 2 thp_size runa_512 16 2
+./exp_base.sh 2 thp_size runa_512 16 3
+./exp_base.sh 2 thp_size runa_1k 16 1
+./exp_base.sh 2 thp_size runa_1k 16 2
+./exp_base.sh 2 thp_size runa_1k 16 3
+./exp_base.sh 2 thp_size runa_2k 16 1
+./exp_base.sh 2 thp_size runa_2k 16 2
+./exp_base.sh 2 thp_size runa_2k 16 3
+./exp_base.sh 2 thp_size runa_4k 16 1
+./exp_base.sh 2 thp_size runa_4k 16 2
+./exp_base.sh 2 thp_size runa_4k 16 3
+
+
+./exp_base_pbr.sh 2 thp_size load_256 16 1
+./exp_base_pbr.sh 2 thp_size load_256 16 2
+./exp_base_pbr.sh 2 thp_size load_256 16 3
+./exp_base_pbr.sh 2 thp_size load_512 16 1
+./exp_base_pbr.sh 2 thp_size load_512 16 2
+./exp_base_pbr.sh 2 thp_size load_512 16 3
+./exp_base_pbr.sh 2 thp_size load_1k 16 1
+./exp_base_pbr.sh 2 thp_size load_1k 16 2
+./exp_base_pbr.sh 2 thp_size load_1k 16 3
+./exp_base_pbr.sh 2 thp_size load_2k 16 1
+./exp_base_pbr.sh 2 thp_size load_2k 16 2
+./exp_base_pbr.sh 2 thp_size load_2k 16 3
+./exp_base_pbr.sh 2 thp_size load_4k 16 1
+./exp_base_pbr.sh 2 thp_size load_4k 16 2
+./exp_base_pbr.sh 2 thp_size load_4k 16 3
+./exp_base_pbr.sh 2 thp_size runa_256 16 1
+./exp_base_pbr.sh 2 thp_size runa_256 16 2
+./exp_base_pbr.sh 2 thp_size runa_256 16 3
+./exp_base_pbr.sh 2 thp_size runa_512 16 1
+./exp_base_pbr.sh 2 thp_size runa_512 16 2
+./exp_base_pbr.sh 2 thp_size runa_512 16 3
+./exp_base_pbr.sh 2 thp_size runa_1k 16 1
+./exp_base_pbr.sh 2 thp_size runa_1k 16 2
+./exp_base_pbr.sh 2 thp_size runa_1k 16 3
+./exp_base_pbr.sh 2 thp_size runa_2k 16 1
+./exp_base_pbr.sh 2 thp_size runa_2k 16 2
+./exp_base_pbr.sh 2 thp_size runa_2k 16 3
+./exp_base_pbr.sh 2 thp_size runa_4k 16 1
+./exp_base_pbr.sh 2 thp_size runa_4k 16 2
+./exp_base_pbr.sh 2 thp_size runa_4k 16 3
+
+

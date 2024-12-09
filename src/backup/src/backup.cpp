@@ -145,8 +145,8 @@ static void write_file(const char *buf,uint32_t len,std::string target_path,uint
 }
 void BackupDB::flush_tail(){
     //if(BACKUP_MODE==1){
-        // std::thread put_into_rocks_th(put_sge_into_rocks,this,tail_sge_ptr);
-        // put_into_rocks_th.detach();
+        std::thread put_into_rocks_th(put_sge_into_rocks,this,tail_sge_ptr);
+        put_into_rocks_th.detach();
     //} 
     // std::string tmp_path = "vsge_"+std::to_string(tail_sge_ptr->sge_id);
     // write_file(tail_sge_ptr->buf.data(),MAX_SGE_SIZE,tmp_path,node_id);

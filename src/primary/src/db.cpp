@@ -408,148 +408,148 @@ bool DB::put_impl(const std::string &key, const std::string &value){
         res_ptr->mr[0] = ibv_reg_mr(res_ptr->pd, res_ptr->buf[0], MAX_SGE_SIZE, mr_flags);
 
 
-        #if SEND_INDEX==1
-        static uint32_t flush_count = 0;
-        flush_count++;
-        if(flush_count%2==0 && backup_node_avail[0] && backup_node_avail[1] &&BACKUP_MODE!=1){
-            beg = clock();
-            //std::cout<<"check LSM change"<<std::endl;
-            bool change = true;
-            std::string manifest_path;
-            get_manipath(manifest_path);
-            if(last_manifest_path == manifest_path){
-                auto new_mani_size = get_file_size(manifest_path);
-                if(last_mani_size == new_mani_size){
-                    change = false;
-                    //std::cout<<"not change,mini_size is "<<new_mani_size<<std::endl;
+        if(BACKUP_MODE==2 || BACKUP_MODE==3){
+            static uint32_t flush_count = 0;
+            flush_count++;
+            if(flush_count%2==0 && backup_node_avail[0] && backup_node_avail[1] &&BACKUP_MODE!=1){
+                beg = clock();
+                //std::cout<<"check LSM change"<<std::endl;
+                bool change = true;
+                std::string manifest_path;
+                get_manipath(manifest_path);
+                if(last_manifest_path == manifest_path){
+                    auto new_mani_size = get_file_size(manifest_path);
+                    if(last_mani_size == new_mani_size){
+                        change = false;
+                        //std::cout<<"not change,mini_size is "<<new_mani_size<<std::endl;
+                    }
+                    last_mani_size = new_mani_size;      
                 }
-                last_mani_size = new_mani_size;      
-            }
-            else{
-                last_manifest_path = manifest_path;
-            }
-            if(change){
-                //std::cout<<"MANIFEST changed^^^^^SEND INDEX"<<std::endl;
-                uint32_t file_size;
-                
-                std::vector<uint32_t>delete_sst_list;
-                rocks_id_list_lock.lock();
-                new_sst_list.clear();
-                get_delete_ssts(delete_sst_list);
-                //std::vector<uint32_t>new_sst_list;
-                
-                get_new_ssts();
-                rocks_id_list_lock.unlock();
-                uint32_t new_sst_num = new_sst_list.size();
-                uint32_t delete_sst_num = delete_sst_list.size();
-                // for(int i=0;i<new_sst_num;i++)
-                //     std::cout<<"new sst id:"<<new_sst_list[i]<<std::endl;
-                // for(int i=0;i<delete_sst_num;i++)
-                //     std::cout<<"delete sst id:"<<delete_sst_list[i]<<std::endl;
-                //int mr_flags = mr_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE;
-                uint32_t lazy_backup = 2;
-                uint32_t mani_size = get_file_size(manifest_path);
-                rdma_msg_lock[0].lock();
-                memcpy(res_ptr->msg_buf[0],&lazy_backup,4);
-                memcpy(res_ptr->msg_buf[0]+4,&new_sst_num,4);
-                memcpy(res_ptr->msg_buf[0]+8,&delete_sst_num,4);
-                memcpy(res_ptr->msg_buf[0]+12,&mani_size,4);
-                
-                for(int n=0;n<K;n++){
-                    if(backup_node_avail[n])
-                        status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,16,355);
-                    else
-                        continue;
-                    if(status){
-                        backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
-                    }
-                    status = poll_completion(res_ptr,n,356);
-                    if(status){
-                        backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
-                    }
+                else{
+                    last_manifest_path = manifest_path;
                 }
-                
-                
-                file_size = read_file(res_ptr->msg_buf[0]+4,manifest_path);
-                //memcpy(res_ptr->msg_buf+4,&file_size,4);
-                uint32_t id;
-                id = atoi(manifest_path.data()+9);
-                memcpy(res_ptr->msg_buf[0],&id,4);
-                for(int n=0;n<K;n++){
-                    if(backup_node_avail[n])
-                        status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,4+mani_size,366);
-                    else
-                        continue;
-                    if(status){
-                        backup_node_avail[n] = false;;
+                if(change){
+                    //std::cout<<"MANIFEST changed^^^^^SEND INDEX"<<std::endl;
+                    uint32_t file_size;
+                    
+                    std::vector<uint32_t>delete_sst_list;
+                    rocks_id_list_lock.lock();
+                    new_sst_list.clear();
+                    get_delete_ssts(delete_sst_list);
+                    //std::vector<uint32_t>new_sst_list;
+                    
+                    get_new_ssts();
+                    rocks_id_list_lock.unlock();
+                    uint32_t new_sst_num = new_sst_list.size();
+                    uint32_t delete_sst_num = delete_sst_list.size();
+                    // for(int i=0;i<new_sst_num;i++)
+                    //     std::cout<<"new sst id:"<<new_sst_list[i]<<std::endl;
+                    // for(int i=0;i<delete_sst_num;i++)
+                    //     std::cout<<"delete sst id:"<<delete_sst_list[i]<<std::endl;
+                    //int mr_flags = mr_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE;
+                    uint32_t lazy_backup = 2;
+                    uint32_t mani_size = get_file_size(manifest_path);
+                    rdma_msg_lock[0].lock();
+                    memcpy(res_ptr->msg_buf[0],&lazy_backup,4);
+                    memcpy(res_ptr->msg_buf[0]+4,&new_sst_num,4);
+                    memcpy(res_ptr->msg_buf[0]+8,&delete_sst_num,4);
+                    memcpy(res_ptr->msg_buf[0]+12,&mani_size,4);
+                    
+                    for(int n=0;n<K;n++){
+                        if(backup_node_avail[n])
+                            status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,16,355);
+                        else
+                            continue;
+                        if(status){
+                            backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                        }
+                        status = poll_completion(res_ptr,n,356);
+                        if(status){
+                            backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                        }
                     }
-                    status = poll_completion(res_ptr,n,367);
-                    if(status){
-                        backup_node_avail[n] = false;;
+                    
+                    
+                    file_size = read_file(res_ptr->msg_buf[0]+4,manifest_path);
+                    //memcpy(res_ptr->msg_buf+4,&file_size,4);
+                    uint32_t id;
+                    id = atoi(manifest_path.data()+9);
+                    memcpy(res_ptr->msg_buf[0],&id,4);
+                    for(int n=0;n<K;n++){
+                        if(backup_node_avail[n])
+                            status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,4+mani_size,366);
+                        else
+                            continue;
+                        if(status){
+                            backup_node_avail[n] = false;;
+                        }
+                        status = poll_completion(res_ptr,n,367);
+                        if(status){
+                            backup_node_avail[n] = false;;
+                        }
                     }
-                }
 
-                
-                //struct ibv_mr **new_sst_mrs = (struct ibv_mr **)malloc(sizeof(struct ibv_mr *)*new_sst_num);
-                std::string target_path(11,'0');
-                target_path[6]='.';
-                target_path[7]='s';
-                target_path[8]='s';
-                target_path[9]='t';
-                target_path[10]='\0';
-                std::string tmp;
-                uint32_t target_id;
-                for(int k=0;k<new_sst_num;k++){
-                    target_id = new_sst_list[k];
-                    tmp = std::to_string(target_id);
-                    for(int i=0;i<tmp.size();i++){
-                        target_path[6-tmp.size()+i] = tmp[i];
-                    }    
-                    file_size = read_file(res_ptr->msg_buf[0]+8,target_path);
-                    memcpy(res_ptr->msg_buf[0]+4,&file_size,4);
-                    memcpy(res_ptr->msg_buf[0],&target_id,4);
-                    for(int n=0;n<K;n++){
-                        if(backup_node_avail[n])
-                            status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,file_size+8,390);
-                        else
-                            continue;
-                        if(status){
-                            backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
-                        }
-                        status = poll_completion(res_ptr,n,391);
-                        if(status){
-                            backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                    
+                    //struct ibv_mr **new_sst_mrs = (struct ibv_mr **)malloc(sizeof(struct ibv_mr *)*new_sst_num);
+                    std::string target_path(11,'0');
+                    target_path[6]='.';
+                    target_path[7]='s';
+                    target_path[8]='s';
+                    target_path[9]='t';
+                    target_path[10]='\0';
+                    std::string tmp;
+                    uint32_t target_id;
+                    for(int k=0;k<new_sst_num;k++){
+                        target_id = new_sst_list[k];
+                        tmp = std::to_string(target_id);
+                        for(int i=0;i<tmp.size();i++){
+                            target_path[6-tmp.size()+i] = tmp[i];
+                        }    
+                        file_size = read_file(res_ptr->msg_buf[0]+8,target_path);
+                        memcpy(res_ptr->msg_buf[0]+4,&file_size,4);
+                        memcpy(res_ptr->msg_buf[0],&target_id,4);
+                        for(int n=0;n<K;n++){
+                            if(backup_node_avail[n])
+                                status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,file_size+8,390);
+                            else
+                                continue;
+                            if(status){
+                                backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                            }
+                            status = poll_completion(res_ptr,n,391);
+                            if(status){
+                                backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                            }
                         }
                     }
-                }
-                for(int k=0;k<delete_sst_num;k++){
-                    target_id = delete_sst_list[k];
-                    memcpy(res_ptr->msg_buf[0]+4*k,&target_id,4);
-                }
-                if(delete_sst_num>0){
-                    for(int n=0;n<K;n++){
-                        if(backup_node_avail[n])
-                            status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,4*delete_sst_num,400);
-                        else
-                            continue;
-                        if(status){
-                            backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
-                        }
-                        status = poll_completion(res_ptr,n,401);
-                        if(status){
-                            backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
-                        }
-                    } 
-                
-                }
-                rdma_msg_lock[0].unlock();  
-            }        
-            end = clock();
-            duration = (double)(end - beg)/CLOCKS_PER_SEC;
-            send_index_time += duration;    
-                
+                    for(int k=0;k<delete_sst_num;k++){
+                        target_id = delete_sst_list[k];
+                        memcpy(res_ptr->msg_buf[0]+4*k,&target_id,4);
+                    }
+                    if(delete_sst_num>0){
+                        for(int n=0;n<K;n++){
+                            if(backup_node_avail[n])
+                                status = post_send_msg(res_ptr,IBV_WR_SEND,n,0,0,4*delete_sst_num,400);
+                            else
+                                continue;
+                            if(status){
+                                backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                            }
+                            status = poll_completion(res_ptr,n,401);
+                            if(status){
+                                backup_node_avail[n] = false;std::cout<<"error connect drop node :"<<n<<std::endl;
+                            }
+                        } 
+                    
+                    }
+                    rdma_msg_lock[0].unlock();  
+                }        
+                end = clock();
+                duration = (double)(end - beg)/CLOCKS_PER_SEC;
+                send_index_time += duration;    
+                    
+            }
         }
-        #endif
     }
     //append到tail sgement并且得到offset和sge_id来作为key index插入lsm
     beg = clock();

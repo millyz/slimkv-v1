@@ -1,6 +1,7 @@
 #include "encode.h"
 #include <list>
 #include <mutex>
+#include <shared_mutex>
 #include <time.h>
 #include <rocksdb/db.h>
 #include "value_sgement.h"
@@ -25,7 +26,8 @@ struct MyHashCompare {
     }
 };
 typedef concurrent_hash_map<std::string,std::string,MyHashCompare> ConReadCache;
-
+using ReadLock = std::shared_lock<std::shared_mutex>;
+using WriteLock = std::unique_lock<std::shared_mutex>;
 class BackupDB{
     public:
         void init(uint32_t node_id_,std::string &rocks_path);
@@ -46,7 +48,8 @@ class BackupDB{
         uint32_t max_ssd_sge_id;
         uint32_t ssd_sge_num;
         std::mutex id_list_lock;
-    
+        std::shared_mutex send_index_lock;
+        
     public:
          BackupDB():con_read_cache(100*1024){
         };

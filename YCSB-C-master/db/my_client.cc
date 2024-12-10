@@ -496,6 +496,7 @@ int my_client::get(const std::string &key, std::string &value){
       int sge_id,offset;
       memcpy(&sge_id,res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+8,4);
       memcpy(&offset,res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+12,4);
+      
       //std::cout<<"sub read from backup node, sge_id = "<<sge_id<<" offset = "<<offset<<std::endl;
       hash_id=init_hash_id;
       while(connect_status[hash_id]==false)
@@ -517,8 +518,9 @@ int my_client::get(const std::string &key, std::string &value){
       memcpy(res.res_list[hash_id*MAX_QP_NUM+qp_id].buf,&op_code,4);
       memcpy(res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+4,&sge_id,4);
       memcpy(res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+8,&offset,4);
-      
-      rc = post_send(&res,IBV_WR_SEND,hash_id,qp_id,0,12);
+      memcpy(res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+12,&key_len,4);
+      memcpy(res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+16,real_key.data(),key_len);
+      rc = post_send(&res,IBV_WR_SEND,hash_id,qp_id,0,16+key_len);
       if(rc){
          need_reput = true;
          
@@ -549,11 +551,11 @@ int my_client::get(const std::string &key, std::string &value){
     }
     static int backup_get_fail=0;
     
-    if(status==1&&hash_id>=4){
-      backup_get_fail++;
-       if(backup_get_fail%500==0)
-          std::cout<<"back_get_fail_count="<<backup_get_fail<<std::endl;
-    }
+   //  if(status==1&&hash_id>=4){
+   //    backup_get_fail++;
+   //     if(backup_get_fail%500==0)
+   //        std::cout<<"back_get_fail_count="<<backup_get_fail<<std::endl;
+   //  }
     int value_len;
     memcpy(&value_len,res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+4,4);
     value.assign(res.res_list[hash_id*MAX_QP_NUM+qp_id].buf+8,value_len);

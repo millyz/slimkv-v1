@@ -631,6 +631,7 @@ void listen_client_task(struct resources *res,int poll_id){
                     }
                     
                 }else if(BACKUP_MODE==2 && USE_LRU==0){
+                    ReadLock rl(backup_node.db_list[primary_node_id].send_index_lock);
                     //sub read
                     auto ret = backup_node.db_list[primary_node_id].rocksdb_ptr->Get(rocksdb::ReadOptions(),key,&value);
                     status = ret.ok()?2:1;
@@ -864,10 +865,10 @@ int main(int argc, char *argv[])
 
     std::cout<<"BACKUP_MODE="<<BACKUP_MODE<<std::endl;
     std::string whether_send_index;
-    // if(SEND_INDEX)
-    //     whether_send_index="is send index";
-    // else
-    //     whether_send_index="no send inedx";
+    if(SEND_INDEX)
+        whether_send_index="is send index";
+    else
+        whether_send_index="no send inedx";
     std::cout<<whether_send_index<<std::endl;
  
     /* print the used parameters for info*/
@@ -1222,52 +1223,66 @@ void listen_flush_tail(struct resources *res){
                 memcpy(&mani_id,res->msg_buf[poll_id],4);
                 std::string target_path;
                 make_mani_path(target_path,mani_id);
-                write_file(res->msg_buf[poll_id]+4,mani_size,target_path,poll_id);
-                if(mani_id!=backup_node.db_list[poll_id].current_mani_id){
-                    make_mani_path(target_path,backup_node.db_list[poll_id].current_mani_id);
-                    remove_rocks_file(target_path,poll_id);
-                    backup_node.db_list[poll_id].current_mani_id = mani_id;
-                }
-                //std::cout<<"write MANIFEST"<<std::endl;
-                uint32_t sst_id,sst_len;
-                
-                target_path = "000000.sst";
-                for(int k=0;k<new_sst_num;k++){
-                    post_receive_msg(res,poll_id,poll_id,MAX_MSG_SIZE,837);
-                    poll_completion(res,poll_id,838);
-                    memcpy(&sst_id,res->msg_buf[poll_id],4);
-                    memcpy(&sst_len,res->msg_buf[poll_id]+4,4);
-                    
-                    std::string tmp = std::to_string(sst_id);
-                    uint32_t tmp_size = tmp.size();
-                    for(int l=0;l<tmp_size;l++)
-                        target_path[6-tmp_size+l]=tmp[l];
-                    write_file(res->msg_buf[poll_id]+8,sst_len,target_path,poll_id);
-                    current_sst_id_list[poll_id][sst_id] = 0;
-                    std::cout<<"create "<<target_path<<" size="<<sst_len<<std::endl;
-                    //此处计划之后改成启动线程异步处理
-                }
-                if(delete_sst_num>0){
-                    
-                    post_receive_msg(res,poll_id,poll_id,4*delete_sst_num,853);
-                    poll_completion(res,poll_id,854);
-                }
-                
-                for(int k=0;k<delete_sst_num;k++){
-                    memcpy(&sst_id,res->msg_buf[poll_id]+4*k,4);
-                    target_path = "000000.sst";
-                    std::string tmp = std::to_string(sst_id);
-                    uint32_t tmp_size = tmp.size();
-                    for(int l=0;l<tmp_size;l++)
-                        target_path[6-tmp_size+l]=tmp[l];
-                    remove_rocks_file(target_path,poll_id);
-                    auto iter = current_sst_id_list[poll_id].find(sst_id);
-                    if(iter!= current_sst_id_list[poll_id].end())
-                        current_sst_id_list[poll_id].erase(iter);
-                    else{
-                        std::cout<<"error!delete id= "<<sst_id<<" from id_list,but not find"<<std::endl;
+                {
+                    WriteLock wl(backup_node.db_list[poll_id].send_index_lock);
+                    //backup_node.db_list[poll_id].rocksdb_ptr->Close();
+                    write_file(res->msg_buf[poll_id]+4,mani_size,target_path,poll_id);
+                    if(mani_id!=backup_node.db_list[poll_id].current_mani_id){
+                        make_mani_path(target_path,backup_node.db_list[poll_id].current_mani_id);
+                        remove_rocks_file(target_path,poll_id);
+                        backup_node.db_list[poll_id].current_mani_id = mani_id;
                     }
-                    //std::cout<<"delete "<<target_path<<std::endl;
+                    //std::cout<<"write MANIFEST"<<std::endl;
+                    uint32_t sst_id,sst_len;
+                    
+                    target_path = "000000.sst";
+                    for(int k=0;k<new_sst_num;k++){
+                        post_receive_msg(res,poll_id,poll_id,MAX_MSG_SIZE,837);
+                        poll_completion(res,poll_id,838);
+                        memcpy(&sst_id,res->msg_buf[poll_id],4);
+                        memcpy(&sst_len,res->msg_buf[poll_id]+4,4);
+                        
+                        std::string tmp = std::to_string(sst_id);
+                        uint32_t tmp_size = tmp.size();
+                        for(int l=0;l<tmp_size;l++)
+                            target_path[6-tmp_size+l]=tmp[l];
+                        write_file(res->msg_buf[poll_id]+8,sst_len,target_path,poll_id);
+                        current_sst_id_list[poll_id][sst_id] = 0;
+                        std::cout<<"create "<<target_path<<" size="<<sst_len<<std::endl;
+                        //此处计划之后改成启动线程异步处理
+                    }
+                    if(delete_sst_num>0){
+                        
+                        post_receive_msg(res,poll_id,poll_id,4*delete_sst_num,853);
+                        poll_completion(res,poll_id,854);
+                    }
+                    
+                    for(int k=0;k<delete_sst_num;k++){
+                        memcpy(&sst_id,res->msg_buf[poll_id]+4*k,4);
+                        target_path = "000000.sst";
+                        std::string tmp = std::to_string(sst_id);
+                        uint32_t tmp_size = tmp.size();
+                        for(int l=0;l<tmp_size;l++)
+                            target_path[6-tmp_size+l]=tmp[l];
+                        remove_rocks_file(target_path,poll_id);
+                        auto iter = current_sst_id_list[poll_id].find(sst_id);
+                        if(iter!= current_sst_id_list[poll_id].end())
+                            current_sst_id_list[poll_id].erase(iter);
+                        else{
+                            std::cout<<"error!delete id= "<<sst_id<<" from id_list,but not find"<<std::endl;
+                        }
+                    }
+                    // std::string rocks_path = "../rocksdb_lsm_"+std::to_string(poll_id);
+                    // rocksdb::DB *dbptr;
+                    // rocksdb::Options options;
+                    // options.compression = rocksdb::kNoCompression;
+                    // options.max_background_flushes = 1;
+                    // options.max_background_compactions = 1;
+                    // options.create_if_missing = false;
+                    // rocksdb::DB::Open(options, rocks_path, &dbptr);
+                    // assert(dbptr != nullptr);
+                    // backup_node.db_list[poll_id].rocksdb_ptr = std::shared_ptr<rocksdb::DB>(dbptr);
+                    // std::cout<<"delete "<<target_path<<std::endl;
                 }
                 
                 
